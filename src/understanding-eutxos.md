@@ -1,119 +1,117 @@
-# Understanding the eUTxO model
+# eUTxO 모델 이해하기
 
-Before we get into any coding we first need to understand how smart contracts work on Cardano and how Cardano differs from the more conventional account-based model.
+코딩에 앞서 먼저 Cardano에서 스마트 컨트랙트가 어떻게 작동하는지와 Cardano가 보다 전통적인 계정 기반 모델과 어떻게 다른지 이해해야 합니다.
 
-> **Note**: eUTxO is an abbreviation of *extended Unspent Transaction Outputs*
+> **참고**: eUTxO는 *extended Unspent Transaction Outputs*의 약자입니다.
 
-## Account-based model vs eUTxO model
+## 계정 기반 모델 vs eUTxO 모델
 
-Smart contracts on Cardano are quite different from those on Ethereum.
+Cardano의 스마트 컨트랙트는 Ethereum의 것과 상당히 다릅니다.
 
-### Ethereum-style smart contracts (account-based)
+### 이더리움 스타일 스마트 컨트랙트 (계정 기반)
 
-When a transaction occurs on an account-based blockchain, the balance of the sender's account is directly decremented and that of the recipient is incremented, similar to how conventional bank accounts work.
+계정 기반 블록체인에서 거래가 발생하면, 보낸 사람의 계정 잔액이 직접 감소하고 수신자의 잔액이 증가하게 됩니다. 이는 일반 은행 계정의 작동 방식과 유사합니다.
 
-Contracts interact with these balances and run via the EVM (Ethereum Virtual Machine). The EVM can be thought of as a global on-chain computer on which smart contracts take turns running, before their results are added to the chain.
+컨트랙트는 이러한 잔액과 상호 작용하며 EVM(이더리움 가상 기계)을 통해 실행됩니다. EVM은 스마트 컨트랙트가 실행되기 전에 결과가 체인에 추가되는 전역 온체인 컴퓨터로 생각할 수 있습니다.
 
->**Note**: the data of all accounts on Ethereum are stored in a [**Merkle-Patricia trie**](https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/), which is like a fancy hashmap. After all the transactions in a block are run, the root hash of the block trie is added to the chain.
+>**참고**: 이더리움의 모든 계정 데이터는 [**Merkle-Patricia trie**](https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/)에 저장됩니다. 이는 고급 해시맵과 같습니다. 블록 내의 모든 거래가 실행된 후, 블록 트라이의 루트 해시가 체인에 추가됩니다.
 
-### The eUTxO model
+### eUTxO 모델
 
-In the eUTxO model tokens are stored in UTxOs. A UTxO is like (electronic)-cash where each individual bundle of bills (Ada and native-tokens) is stored separately.
+eUTxO 모델에서 토큰은 UTxO에 저장됩니다. UTxO는 각각의 지폐 묶음(에이다와 네이티브 토큰)이 별도로 저장되는 (전자) 현금과 같습니다.
 
-A transaction in the UTxO model takes one or more UTxOs as **transaction inputs**, which are destroyed, and creates one or more UTxOs as **transaction outputs**.
+UTxO 모델의 거래는 하나 이상의 UTxO를 **거래 입력**으로 사용하며, 이들은 소멸되고 하나 이상의 UTxO를 **거래 출력**으로 생성합니다.
 
-Transactions in an account-based model mutate the data-points storing the total balances. This is very risky (regular banks are insured against this, and also have paper backups in case of mistakes, but blockchains have no such fallbacks). In the UTxO model only the "bills" that participate in a given transaction can potentially be affected (which is bad, but not catastrophic).
+계정 기반 모델에서 거래는 총 잔액을 저장하는 데이터 포인트를 변경합니다. 이것은 매우 위험한데 (일반 은행은 이에 대해 보험으로 보호되며, 실수가 발생한 경우 종이 백업도 있지만, 블록체인은 이러한 안전장치가 없습니다). UTxO 모델에서는 주어진 거래에 참여하는 "청구"만 영향을 받을 수 있습니다 (이것은 나쁘지만, 치명적이지는 않습니다).
 
-Of course a UTxO chain can emulate account-based chains (by storing all tokens in a single UTxO) and account-based chains can emulate UTxO chains (by spreading a user's balance over many different accounts).
+물론 UTxO 체인은 계정 기반 체인을 에뮬레이트 할 수 있습니다 (모든 토큰을 단일 UTxO에 저장함으로써) 그리고 계정 기반 체인은 UTxO 체인을 에뮬레이트 할 수 있습니다 (사용자의 잔액을 여러 다른 계정에 분산시킴으로써).
 
-## Components of a UTxO on Cardano
+## Cardano의 UTxO 구성 요소
 
-UTxOs have 3 main components:
-- an address
-- tokens (Ada and other native assets)
-- a datum
+UTxO에는 3가지 주요 구성 요소가 있습니다:
+- 주소
+- 토큰 (Ada 및 기타 네이티브 자산)
+- 데이텀
 
 ### Address
 
-The address of a UTxO determines the owner (i.e. who has the right to spend it).
+UTxO의 주소는 소유자(즉, 사용 권한이 있는 사람)를 결정합니다.
 
-A user's balance is calculated by summing all UTxOs sitting at addresses *owned* by that user.
+사용자의 잔액은 해당 사용자가 소유한 주소에 위치한 모든 UTxO를 합산하여 계산됩니다.
 
-An address can either be derived from the hash of a user's public key ([`PubKeyHash`](./lang/builtins/pubkeyhash.md) in Helios), or the hash of a validator script ([`ValidatorHash`](./lang/builtins/validatorhash.md) in Helios). In the latter case the script effectively becomes the owner of the UTxO.
+주소는 사용자의 공개 키의 해시(Helios에서 [`PubKeyHash`](./lang/builtins/pubkeyhash.md)) 또는 유효성 검사자 스크립트의 해시(Helios에서 [`ValidatorHash`](./lang/builtins/validatorhash.md))에서 파생될 수 있습니다. 후자의 경우 스크립트가 UTxO의 소유자가 됩니다.
 
 ### Tokens
 
-Each UTxO contains some tokens, which represent value on the blockchain. Tokens have positive value due to scarcity (tokens can't be duplicated) and utility (eg. Ada being used to pay transaction fees).
+각 UTxO는 블록체인 상의 가치를 나타내는 일부 토큰을 포함합니다. 토큰은 희소성(토큰을 복제할 수 없으므로)과 유틸리티(예: Ada는 거래 수수료를 지불하는 데 사용됨)로 인해 양수의 가치를 가집니다.
 
-### Datum
+### 데이텀(Datum)
 
-The *datum* is data that is attached to UTxOs. A datum represents the state of a smart contract, and is immutable (smart contract state can change though, by spending old UTxOs and creating new ones).
+*데이텀*은 UTxO에 연결된 데이터를 나타냅니다. 데이텀은 스마트 컨트랙트의 상태를 나타내며 불변적입니다. (하지만 기존의 UTxO를 소비하고 새로운 UTxO를 생성함으로써 스마트 컨트랙트 상태는 변경될 수 있습니다.)
 
-The 'e' (*extended*) in eUTxO comes from the datum. The Bitcoin UTxO model doesn't have datums, giving Bitcoin scripts very limited capabilities. *Extending* the UTxO model, as done by Cardano and Ergo, gives an eUTxO model the same capabilities as an account-based model, while benefitting from a much safer approach to transactions (because a global state isn't being accessed/mutated).
+'e'(*extended*)UTxO의 'e'는 데이텀에서 옵니다. 비트코인 UTxO 모델은 데이텀이 없으므로 비트코인 스크립트의 능력이 매우 제한적입니다. Cardano와 Ergo가 수행한 UTxO 모델의 *확장*은 eUTxO 모델이 계정 기반 모델과 동일한 능력을 갖도록하면서도 훨씬 안전한 거래 접근 방식을 제공합니다. (전역 상태가 접근/변경되지 않기 때문입니다.)
 
-## Validator scripts
+## 유효성 검사기 스크립트
 
-A validator script is a function that is evaluated when a transaction attempts to spend a UTxO locked at that script's address. This function takes 3 arguments:
-  * the datum attached to the UTxO
-  * some data provided by the user who created the transaction (the *redeemer*)
-  * details about the transaction (the *script context*)
-   
-The validator script then calculates whether or not the UTxO is allowed to be spent (essentially returning a boolean result).
+유효성 검사기 스크립트는 해당 스크립트의 주소에 잠긴 UTxO가 소비되려고 할 때 평가되는 함수입니다. 이 함수는 3개의 인수를 사용합니다.
+* UTxO에 첨부된 데이텀(*datum*)
+* 트랜잭션을 생성한 사용자가 제공한 데이터(*redeemer*)
+* 트랜잭션에 대한 정보(*script context*)
 
-Separating the validation logic from the transaction building/submitting logic makes it much easier to audit the trusted part of eUTxO DApps.
+유효성 검사기 스크립트는 UTxO가 소비될 수 있는지 여부를 계산합니다(사실상 부울 결과를 반환합니다).
 
-Helios is all about writing these validator scripts.
+검증 로직을 거래 빌드/제출 로직에서 분리하면 eUTxO DApp의 신뢰 가능한 부분을 감사하기가 훨씬 쉬워집니다.
 
-> **Note**: a UTxO can only be spent once. In every transaction all input UTxOs are destroyed, and new output UTxOs are created.
+Helios는 이러한 유효성 검사기 스크립트 작성을 중점적으로 다룹니다.
 
-> **Note**: a valid transaction must satisfy the following conditions:
-> - the transaction must be balanced: the total amount of tokens in the transaction inputs must be equal to those in the transaction outputs (minus the fees, plus the minted tokens).
-> - the validators for all the transaction inputs must evaluate to `true`.
+> **참고**: UTxO는 한 번만 사용할 수 있습니다. 모든 입력 UTxO는 트랜잭션에서 파괴되고, 새로운 출력 UTxO가 생성됩니다.
 
-## Pros and cons of the eUTxO Model
+> **참고**: 유효한 트랜잭션은 다음 조건을 충족해야 합니다:
+> - 트랜잭션은 균형(balanced)을 이루어야 합니다: 트랜잭션 입력에 포함된 토큰의 총량이 트랜잭션 출력에 포함된 토큰의 총량과 같아야 합니다(수수료와 발행된 토큰을 뺀 값).
+> - 모든 트랜잭션 입력에 대한 유효성 검사기가 `true`로 평가되어야 합니다.
 
-### Pros
+## eUTxO 모델의 장단점
 
-- #### Deterministic transaction fees
+### 장점
 
-  eUTxO smart contract evaluation is deterministic. This means that you can calculate the resource usage of a transaction before posting it to the blockchain. The transaction fees for a transaction can thus be calculated deterministically off-chain.
-  
-  The transaction fees of account-based blockchains depend on network load, and can vary a lot.
+- #### 결정론적 거래 수수료
 
-- #### Transaction fees not charged upon failure
-  The determinism of the eUTxO model means that transaction success can be determined before posting. Transaction failure is still possible due to contention, but this is a very cheap check, and no fee is charged.
-  
-  Transaction failure on account-based blockchains results in losing the fee, as significant processing power might've been used before encountering the failure condition.
+  eUTxO 스마트 컨트랙트 평가는 결정론적(미리 계산 가능)입니다. 이는 블록체인에 트랜잭션을 게시하기 전에 트랜잭션의 리소스 사용량을 계산할 수 있다는 것을 의미합니다. 따라서 트랜잭션 수수료는 체인 밖에서 결정론적으로 계산할 수 있습니다.
 
+  계정 기반 블록체인의 트랜잭션 수수료는 네트워크 부하에 따라 달라질 수 있으며, 크게 다를 수 있습니다.
 
-- #### Easier to audit
+- #### 실패 시 수수료 부과하지 않음
 
-  Auditing of eUTxO smart contracts is much easier because only the validation function needs to be audited, which has a very **locally-scoped** nature.
+  eUTxO 모델의 결정론성은 게시하기 전에 트랜잭션 성공 여부를 판별할 수 있다는 것을 의미합니다. 트랜잭션 실패는 여전히 경합으로 인해 발생할 수 있지만, 이는 매우 싼 검사이며 수수료가 부과되지 않습니다.
 
-- #### Concurrency
+  계정 기반 블록체인에서 트랜잭션 실패는 실패 조건을 만나기 전에 상당한 처리 능력이 사용되었기 때문에 수수료를 잃게 됩니다.
 
-  Due to monetary value being naturally spread over many UTxOs, a UTxO blockchain can be compared to an extremely sharded account-based blockchain (some smart contracts might require a centralized data-point though, and won't allow concurrent interactions, see [contention](#contention)).
+- #### 감사가 쉬움
 
-- #### Better for layer 2
+  eUTxO 스마트 컨트랙트의 감사는 유효성 검사 함수만 감사하면 되기 때문에 훨씬 쉽습니다. 이 함수는 매우 **지역적**인 특성을 갖습니다.
 
-  The local nature of UTxOs allows reusing validation logic in layer 2 scaling solutions
-  such as state channels (see [hydra](https://iohk.io/en/blog/posts/2021/09/17/hydra-cardano-s-solution-for-ultimate-scalability/)). 
+- #### 동시성
 
-- #### Simpler
+  통화 가치가 여러 UTxO에 자연스럽게 분산되기 때문에, UTxO 블록체인은 극도로 샤드된 계정 기반 블록체인과 비교할 수 있습니다(일부 스마트 컨트랙트은 중앙 집합적 데이터 지점이 필요하여 동시 상호 작용을 허용하지 않습니다. [경합](#contention) 참조).
 
-  Though not immediately obvious, eUTxO smart contracts are often much simpler than an equivalent Solidity smart contract (this will become apparant when you start to use Helios).
+- #### 레이어 2에 적합
 
-### Cons
+  UTxO의 지역성은 레이어 2 스케일링 솔루션인 상태 채널(state channels)과 같은 곳에서 검증 로직을 재사용할 수 있도록 합니다(자세한 내용은 [hydra](https://iohk.io/en/blog/posts/2021/09/17/hydra-cardano-s-solution-for-ultimate-scalability/) 참조).
 
-- #### Contention
+- #### 더 간단함
+  처음에는 분명하지 않지만, eUTxO 스마트 컨트랙트은 종종 동등한 Solidity 스마트 컨트랙트보다 훨씬 간단합니다(이것은 Helios를 사용하면 명백해집니다).
 
-  If eUTxO contracts aren't designed properly they can encounter *contention* problems. Contention occurs when two or more transactions try to spend the same UTxO. If this happens only one of the transactions will succeed, and the others will fail (resulting in an unpleasant user experience).
+### 단점
 
-  This is usually not an issue on Ethereum because the EVM handles ordering smart contract calls.
+- #### 경합
 
-  > **Note**: there are ways to avoid contention, by for example taking advantage of the parallel nature of UTxOs (see SundaeSwap's [scooper model](https://sundaeswap.finance/posts/sundaeswap-scalability))
+  eUTxO 계약이 제대로 설계되지 않으면 *경합* 문제가 발생할 수 있습니다. 경합은 두 개 이상의 트랜잭션이 같은 UTxO를 소비하려고 할 때 발생합니다. 이럴 경우, 트랜잭션이 하나만 성공하고 나머지는 실패합니다(이로 인해 사용자 경험이 불쾌해질 수 있습니다).
 
-## Further reading
+  이는 일반적으로 이더리움에서는 문제가 되지 않습니다. EVM이 스마트 컨트랙트 호출의 순서를 처리하기 때문입니다.
 
-If you feel like you still don't fully understand the eUTxO model, we recommend you keep reading:
-  * [Learning Ergo 101 : eUTXO explained for human beings](https://dav009.medium.com/learning-ergo-101-blockchain-paradigm-eutxo-c90b0274cf5e), a great blog post by [David Pryzbilla](https://github.com/dav009)
+  > **참고**: UTxO의 병렬성 특성을 활용하여 경합을 피하는 방법이 있습니다(SundaeSwap의 [scooper 모델](https://sundaeswap.finance/posts/sundaeswap-scalability) 참조).
+
+## 더 읽을 거리
+
+eUTxO 모델을 완전히 이해하지 못한 것 같다면, 다음을 읽어보시기를 추천합니다:
+* [Learning Ergo 101 : eUTXO explained for human beings](https://dav009.medium.com/learning-ergo-101-blockchain-paradigm-eutxo-c90b0274cf5e) (인간을 위한 eUTXO 설명), [David Pryzbilla](https://github.com/dav009)의 훌륭한 블로그 글
